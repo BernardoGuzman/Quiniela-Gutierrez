@@ -609,7 +609,7 @@ function renderRanking(filter) {
     var el = r.dieci + r.octavos + r.cuartos + r.semis + r.final_pts + r.tercero;
     var safeName = r.name.replace(/'/g, "\'");
     var rowClass = r.name === myName ? ' is-me' : '';
-    html += '<div class="ranking-row' + rowClass + '" onclick="goToFicha('' + safeName + '')">'
+    html += '<div class="ranking-row' + rowClass + '" onclick="goToFicha('" + safeName + "')">'
       + '<span><div class="pos-badge ' + pc + '">' + r.pos + '</div></span>'
       + '<span class="rank-name">' + r.name + (r.name === myName ? ' 👤' : '') + '</span>'
       + '<span class="rank-pts r-grupos">' + r.grupos + '</span>'
@@ -781,15 +781,15 @@ function loadRivales() {
   var html = '';
   if (myC) {
     html += '<div class="rival-card"><h3>🏆 También apostaron por ' + myC + ' como campeón</h3>';
-    if (sameC.length) sameC.forEach(function(p) { html += '<div class="rival-row"><span class="rival-name" onclick="goToFicha('' + p.replace(/'/g, "\'") + '')">' + p + '</span><span style="font-size:13px;color:var(--muted)">mismo pick</span></div>'; });
+    if (sameC.length) sameC.forEach(function(p) { html += '<div class="rival-row"><span class="rival-name" onclick="goToFicha(' + p.replace(/'/g, "\'") + ')">' + p + '</span><span style="font-size:13px;color:var(--muted)">mismo pick</span></div>'; });
     else html += '<div style="font-size:13px;color:var(--muted);padding:8px 0">Nadie más apostó por este campeón. Eres contrarian 🦁</div>';
     html += '</div>';
   }
   html += '<div class="rival-card"><h3>🤝 Quinielas más similares</h3>';
-  sims.slice(0, 10).forEach(function(s) { html += '<div class="rival-row"><div style="flex:1"><div style="display:flex;justify-content:space-between"><span class="rival-name" onclick="goToFicha('' + s.name.replace(/'/g, "\'") + '')">' + s.name + '</span><span style="font-size:13px;color:var(--muted)">' + s.pct + '% · ' + s.sE + '✓ ' + s.sR + '≈ / ' + s.tot + '</span></div><div class="rival-bar"><div class="rival-bar-fill" style="width:' + s.pct + '%"></div></div></div></div>'; });
+  sims.slice(0, 10).forEach(function(s) { html += '<div class="rival-row"><div style="flex:1"><div style="display:flex;justify-content:space-between"><span class="rival-name" onclick="goToFicha(' + s.name.replace(/'/g, "\'") + ')">' + s.name + '</span><span style="font-size:13px;color:var(--muted)">' + s.pct + '% · ' + s.sE + '✓ ' + s.sR + '≈ / ' + s.tot + '</span></div><div class="rival-bar"><div class="rival-bar-fill" style="width:' + s.pct + '%"></div></div></div></div>'; });
   html += '</div>';
   html += '<div class="rival-card"><h3>⚔️ Quinielas más opuestas</h3>';
-  sims.slice(-8).reverse().forEach(function(s) { html += '<div class="rival-row"><div style="flex:1"><div style="display:flex;justify-content:space-between"><span class="rival-name" onclick="goToFicha('' + s.name.replace(/'/g, "\'") + '')">' + s.name + '</span><span style="font-size:13px;color:var(--miss)">' + s.pct + '% coincidencia</span></div><div class="rival-bar"><div class="rival-bar-fill" style="width:' + s.pct + '%;background:var(--miss)"></div></div></div></div>'; });
+  sims.slice(-8).reverse().forEach(function(s) { html += '<div class="rival-row"><div style="flex:1"><div style="display:flex;justify-content:space-between"><span class="rival-name" onclick="goToFicha(' + s.name.replace(/'/g, "\'") + ')">' + s.name + '</span><span style="font-size:13px;color:var(--miss)">' + s.pct + '% coincidencia</span></div><div class="rival-bar"><div class="rival-bar-fill" style="width:' + s.pct + '%;background:var(--miss)"></div></div></div></div>'; });
   html += '</div>';
   content.innerHTML = html;
 }
