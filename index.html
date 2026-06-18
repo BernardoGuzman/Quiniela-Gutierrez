@@ -411,7 +411,7 @@ function showMyBanner(){
   var matchesEl=document.getElementById("myBannerMatches");
   banner.style.display="block";
   nameEl.textContent="Tu quiniela: "+myName;
-  var todayPids=(SEED.todayMatches||[]).map(function(m){return m.pid;});
+  var todayPids=getTodayMatches().map(function(m){return m.pid;});
   var toShow=todayPids.length>0
     ?SEED.groupMatches.filter(function(m){return todayPids.indexOf(m.pid)>=0;})
     :SEED.groupMatches.filter(function(m){var r=getResult(m.pid);return!r||r.gl===null||r.gl===undefined;}).slice(0,6);
@@ -425,16 +425,44 @@ function showMyBanner(){
   matchesEl.innerHTML=html||"<span style='font-size:11px;color:rgba(255,255,255,0.4)'>No hay partidos hoy</span>";
 }
 
+// Map Spanish day/month abbreviations to numbers
+var DIAS={"Lun":1,"Mar":2,"Mié":3,"Jue":4,"Vie":5,"Sáb":6,"Dom":0};
+var MESES={"ene":0,"feb":1,"mar":2,"abr":3,"may":4,"jun":5,"jul":6,"ago":7,"sep":8,"oct":9,"nov":10,"dic":11};
+
+function getTodayMatches(){
+  var now=new Date();
+  var todayDay=now.getDate();
+  var todayMonth=now.getMonth();
+  return SEED.groupMatches.filter(function(m){
+    var res=SEED.realResults[String(m.pid)];
+    if(!res||!res.fecha)return false;
+    // Parse "Mié 17 jun · 14:00"
+    var parts=res.fecha.split(" ");
+    if(parts.length<3)return false;
+    var day=parseInt(parts[1]);
+    var monthStr=parts[2].toLowerCase().replace(".","");
+    var month=MESES[monthStr];
+    if(isNaN(day)||month===undefined)return false;
+    return day===todayDay&&month===todayMonth;
+  });
+}
+
 function renderTodayBanner(){
   var banner=document.getElementById("todayBanner");
-  if(!SEED.todayMatches||!SEED.todayMatches.length){banner.style.display="none";return;}
-  var html="<div class='today-banner-inner'><div class='today-label'>Hoy juegan</div><div class='today-matches-row'>";
-  SEED.todayMatches.forEach(function(m){
+  var todayMatches=getTodayMatches();
+  if(!todayMatches.length){banner.style.display="none";return;}
+  banner.style.display="block";
+  var now=new Date();
+  var dayNames=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+  var monthNames=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  var dateLabel=dayNames[now.getDay()]+" "+now.getDate()+" "+monthNames[now.getMonth()];
+  var html="<div class='today-banner-inner'><div class='today-label'>Hoy juegan — "+dateLabel+"</div><div class='today-matches-row'>";
+  todayMatches.forEach(function(m){
     var live=getResult(m.pid);var played=live&&live.gl!==null&&live.gl!==undefined;
-    var t=m.fecha.split(".")[1];if(t)t=t.trim();else t="";
+    var res=SEED.realResults[String(m.pid)];
+    var t=res&&res.fecha?res.fecha.split("·")[1]:"";if(t)t=t.trim();
     var scoreHtml=played?"<span class='today-score'>"+live.gl+"-"+live.gv+"</span>":"<span class='today-time'>"+t+"</span>";
-    var match=SEED.groupMatches.find(function(gm){return gm.pid===m.pid;});
-    var myPred=myName&&match&&match.predictions[myName];
+    var myPred=myName&&m.predictions[myName];
     var myPredHtml=myPred&&myPred.gl!==null?"<span class='today-my-pred'>Yo: <strong>"+myPred.gl+"-"+myPred.gv+"</strong></span>":"";
     html+="<div class='today-match-pill"+(played?" played":"")+"' onclick='goToMatch("+m.pid+")'>"
       +(!played?"<span class='today-live-dot'></span>":"")
@@ -480,7 +508,7 @@ function goToFicha(name){name=decodeURIComponent(name);
   document.getElementById("fichaSelect").value=name;loadFicha();
 }
 
-function isTodayMatch(pid){return SEED.todayMatches&&SEED.todayMatches.some(function(m){return m.pid===pid;});}
+function isTodayMatch(pid){return getTodayMatches().some(function(m){return m.pid===pid;});}
 
 function renderMatchCard(match,viewAs){
   var real=getResult(match.pid);var hasResult=real&&real.gl!==null&&real.gl!==undefined;
@@ -518,7 +546,7 @@ function renderMatches(filter,grupoFilter){
   var groups={};
   SEED.groupMatches.forEach(function(m){if(!groups[m.grupo])groups[m.grupo]=[];groups[m.grupo].push(m);});
   var html="";
-  var todayPids=(SEED.todayMatches||[]).map(function(m){return m.pid;});
+  var todayPids=getTodayMatches().map(function(m){return m.pid;});
   if(todayPids.length&&!grupoFilter){
     var tm=SEED.groupMatches.filter(function(m){return todayPids.indexOf(m.pid)>=0;});
     if(tm.length){html+="<div class='grupo-section'><div class='grupo-title' style='color:var(--gold)'>Partidos de hoy</div>";tm.forEach(function(m){html+=renderMatchCard(m,viewAs);});html+="</div>";}
@@ -550,7 +578,7 @@ function loadFicha(){
   var rankings=computeRankings();var ranking=rankings.find(function(r){return r.name===name;});
   var stats=getParticipantStats(name);var champ=SEED.champions[name]||{};
   var initials=name.split(" ").map(function(w){return w[0];}).slice(0,2).join("").toUpperCase();
-  var todayPids=(SEED.todayMatches||[]).map(function(m){return m.pid;});
+  var todayPids=getTodayMatches().map(function(m){return m.pid;});
   var html="<div class='ficha-header'><div class='ficha-avatar'>"+initials+"</div>"
     +"<div><div class='ficha-name'>"+name+"</div><div class='ficha-pos'>Posicion #"+(ranking?ranking.pos:"N/A")+" de "+SEED.participants.length+"</div></div>"
     +"<div class='ficha-total'><div class='ficha-pts'>"+(ranking?ranking.total:0)+"</div><div class='ficha-pts-label'>Puntos</div></div></div>";
