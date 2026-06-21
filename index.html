@@ -822,6 +822,26 @@ function initUI(){
 }
 
 
+// Expose all functions to global scope (required for onclick handlers with type="module")
+window.showTab = showTab;
+window.setOwner = setOwner;
+window.skipOwner = skipOwner;
+window.changeOwner = changeOwner;
+window.filterRanking = filterRanking;
+window.goToFicha = goToFicha;
+window.filterMatches = filterMatches;
+window.toggleMatch = toggleMatch;
+window.goToMatch = goToMatch;
+window.loadFicha = loadFicha;
+window.runSimulator = runSimulator;
+window.loadRivales = loadRivales;
+window.openAdmin = openAdmin;
+window.pinKey = pinKey;
+window.pinDel = pinDel;
+window.pinCancel = pinCancel;
+window.adminLogout = adminLogout;
+
+
 // Firebase listener
 const resultsRef = ref(db, "results");
 onValue(resultsRef, function(snapshot) {
@@ -865,24 +885,6 @@ window.saveResult = function(pid) {
 };
 
 
-// Expose all functions to global scope (required for onclick handlers with type="module")
-window.showTab = showTab;
-window.setOwner = setOwner;
-window.skipOwner = skipOwner;
-window.changeOwner = changeOwner;
-window.filterRanking = filterRanking;
-window.goToFicha = goToFicha;
-window.filterMatches = filterMatches;
-window.toggleMatch = toggleMatch;
-window.goToMatch = goToMatch;
-window.loadFicha = loadFicha;
-window.runSimulator = runSimulator;
-window.loadRivales = loadRivales;
-window.openAdmin = openAdmin;
-window.pinKey = pinKey;
-window.pinDel = pinDel;
-window.pinCancel = pinCancel;
-window.adminLogout = adminLogout;
 
 </script>
 </body>
