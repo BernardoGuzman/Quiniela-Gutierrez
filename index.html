@@ -709,49 +709,68 @@ function renderStats(){
 function renderAdminPanel(){
   var container=document.getElementById("adminMatchList");
 
-  // Sort all matches chronologically by pid (pid order = chronological order from Excel)
-  var sorted=SEED.groupMatches.slice().sort(function(a,b){return a.pid-b.pid;});
+  // Parse hora from fecha string e.g. "Vie 19 jun · 13:00" -> sortable number
+  function fechaToSort(fecha){
+    if(!fecha)return 9999;
+    var parts=fecha.split("·");
+    if(parts.length<2)return 9999;
+    var datePart=parts[0].trim(); // e.g. "Vie 19 jun"
+    var timePart=parts[1].trim(); // e.g. "13:00"
+    var MESES2={"ene":0,"feb":1,"mar":2,"abr":3,"may":4,"jun":5,"jul":6,"ago":7,"sep":8,"oct":9,"nov":10,"dic":11};
+    var dp=datePart.split(" ");
+    var day=parseInt(dp[1])||0;
+    var month=MESES2[dp[2]?dp[2].toLowerCase():""]; if(month===undefined)month=0;
+    var tp=timePart.split(":");
+    var hour=parseInt(tp[0])||0;
+    var min=parseInt(tp[1])||0;
+    return month*100000+day*1000+hour*100+min;
+  }
 
-  // Group by date
-  var byDate={};var dateOrder=[];
-  sorted.forEach(function(match){
-    var seedRes=SEED.realResults[String(match.pid)];
-    var fecha=seedRes?seedRes.fecha:"";
-    var dateKey=fecha?fecha.split("·")[0].trim():"Sin fecha";
-    if(!byDate[dateKey]){byDate[dateKey]=[];dateOrder.push(dateKey);}
-    byDate[dateKey].push(match);
+  // Sort all matches by date+time
+  var sorted=SEED.groupMatches.slice().sort(function(a,b){
+    var ra=SEED.realResults[String(a.pid)];
+    var rb=SEED.realResults[String(b.pid)];
+    var fa=ra?ra.fecha:"";
+    var fb=rb?rb.fecha:"";
+    return fechaToSort(fa)-fechaToSort(fb);
   });
 
+  var todayPids=getTodayMatches().map(function(m){return m.pid;});
   var html="";
-  dateOrder.forEach(function(dateKey){
-    // Highlight today
-    var todayPids=getTodayMatches().map(function(m){return m.pid;});
-    var isToday=byDate[dateKey].some(function(m){return todayPids.indexOf(m.pid)>=0;});
-    var labelStyle=isToday?"color:var(--gold);":"color:var(--muted);";
-    html+="<div style='font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;"+labelStyle+"margin:16px 0 8px'>"
-      +(isToday?"⚡ ":"")+dateKey+"</div>";
-    byDate[dateKey].forEach(function(match){
-      var live=getResult(match.pid);
-      var gl=live&&live.gl!==null&&live.gl!==undefined?live.gl:"";
-      var gv=live&&live.gv!==null&&live.gv!==undefined?live.gv:"";
-      var seedRes=SEED.realResults[String(match.pid)];
-      var hora=seedRes&&seedRes.fecha?seedRes.fecha.split("·")[1]||"":"";
-      var hasResult=gl!==""&&gv!=="";
-      var rowStyle=hasResult?"background:#f0faf5;":"";
-      html+="<div class='admin-match-row' style='"+rowStyle+"'>"
-        +"<div class='admin-teams'>"+match.local+" vs "+match.visitante
-        +"<span>"+hora.trim()+(hasResult?" · "+gl+"-"+gv+" ✓":"")+"</span></div>"
-        +"<input class='score-input' type='number' min='0' max='20' id='gl_"+match.pid+"' value='"+gl+"' placeholder='-'>"
-        +"<span class='score-sep'>-</span>"
-        +"<input class='score-input' type='number' min='0' max='20' id='gv_"+match.pid+"' value='"+gv+"' placeholder='-'>"
-        +"<button class='save-match-btn' onclick='saveResult("+match.pid+")' id='savebtn_"+match.pid+"'>Guardar</button>"
-        +"</div>";
-    });
+  var lastDate="";
+
+  sorted.forEach(function(match){
+    var live=getResult(match.pid);
+    var gl=live&&live.gl!==null&&live.gl!==undefined?live.gl:"";
+    var gv=live&&live.gv!==null&&live.gv!==undefined?live.gv:"";
+    var seedRes=SEED.realResults[String(match.pid)];
+    var fecha=seedRes?seedRes.fecha:"";
+    var dateKey=fecha?fecha.split("·")[0].trim():"";
+    var hora=fecha?fecha.split("·")[1]||"":"";
+    var isToday=todayPids.indexOf(match.pid)>=0;
+    var hasResult=gl!==""&&gv!=="";
+
+    // Date header when date changes
+    if(dateKey&&dateKey!==lastDate){
+      var labelStyle=isToday?"color:var(--gold);":"color:var(--muted);";
+      html+="<div style='font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;"+labelStyle+"margin:16px 0 8px'>"
+        +(isToday?"⚡ ":"")+dateKey.toUpperCase()+"</div>";
+      lastDate=dateKey;
+    }
+
+    var rowStyle=hasResult?"background:#f0faf5;":"";
+    html+="<div class='admin-match-row' style='"+rowStyle+"'>"
+      +"<div class='admin-teams'>"+match.local+" vs "+match.visitante
+      +"<span>"+hora.trim()+(hasResult?" · "+gl+"-"+gv+" ✓":"")+"</span></div>"
+      +"<input class='score-input' type='number' min='0' max='20' id='gl_"+match.pid+"' value='"+gl+"' placeholder='-'>"
+      +"<span class='score-sep'>-</span>"
+      +"<input class='score-input' type='number' min='0' max='20' id='gv_"+match.pid+"' value='"+gv+"' placeholder='-'>"
+      +"<button class='save-match-btn' onclick='saveResult("+match.pid+")' id='savebtn_"+match.pid+"'>Guardar</button>"
+      +"</div>";
   });
   container.innerHTML=html;
 }
 
-var pinBuffer2="",adminUnlocked2=false;
 function openAdmin(){if(adminUnlocked2){showTab("admin",document.getElementById("adminNavBtn"));return;}pinBuffer2="";updatePinDots2();document.getElementById("pinError").textContent="";document.getElementById("pinOverlay").style.display="flex";}
 function pinKey(d){if(pinBuffer2.length>=4)return;pinBuffer2+=d;updatePinDots2();if(pinBuffer2.length===4)setTimeout(checkPin2,120);}
 function pinDel(){pinBuffer2=pinBuffer2.slice(0,-1);updatePinDots2();}
