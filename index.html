@@ -708,19 +708,39 @@ function renderStats(){
 
 function renderAdminPanel(){
   var container=document.getElementById("adminMatchList");
-  var groups={};
-  SEED.groupMatches.forEach(function(m){if(!groups[m.grupo])groups[m.grupo]=[];groups[m.grupo].push(m);});
+
+  // Sort all matches chronologically by pid (pid order = chronological order from Excel)
+  var sorted=SEED.groupMatches.slice().sort(function(a,b){return a.pid-b.pid;});
+
+  // Group by date
+  var byDate={};var dateOrder=[];
+  sorted.forEach(function(match){
+    var seedRes=SEED.realResults[String(match.pid)];
+    var fecha=seedRes?seedRes.fecha:"";
+    var dateKey=fecha?fecha.split("·")[0].trim():"Sin fecha";
+    if(!byDate[dateKey]){byDate[dateKey]=[];dateOrder.push(dateKey);}
+    byDate[dateKey].push(match);
+  });
+
   var html="";
-  Object.keys(groups).sort().forEach(function(grupo){
-    html+="<div style='font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin:16px 0 8px'>Grupo "+grupo+"</div>";
-    groups[grupo].forEach(function(match){
+  dateOrder.forEach(function(dateKey){
+    // Highlight today
+    var todayPids=getTodayMatches().map(function(m){return m.pid;});
+    var isToday=byDate[dateKey].some(function(m){return todayPids.indexOf(m.pid)>=0;});
+    var labelStyle=isToday?"color:var(--gold);":"color:var(--muted);";
+    html+="<div style='font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;"+labelStyle+"margin:16px 0 8px'>"
+      +(isToday?"⚡ ":"")+dateKey+"</div>";
+    byDate[dateKey].forEach(function(match){
       var live=getResult(match.pid);
       var gl=live&&live.gl!==null&&live.gl!==undefined?live.gl:"";
       var gv=live&&live.gv!==null&&live.gv!==undefined?live.gv:"";
       var seedRes=SEED.realResults[String(match.pid)];
-      var fecha=seedRes?seedRes.fecha:"";
-      html+="<div class='admin-match-row'>"
-        +"<div class='admin-teams'>"+match.local+" vs "+match.visitante+"<span>"+fecha+"</span></div>"
+      var hora=seedRes&&seedRes.fecha?seedRes.fecha.split("·")[1]||"":"";
+      var hasResult=gl!==""&&gv!=="";
+      var rowStyle=hasResult?"background:#f0faf5;":"";
+      html+="<div class='admin-match-row' style='"+rowStyle+"'>"
+        +"<div class='admin-teams'>"+match.local+" vs "+match.visitante
+        +"<span>"+hora.trim()+(hasResult?" · "+gl+"-"+gv+" ✓":"")+"</span></div>"
         +"<input class='score-input' type='number' min='0' max='20' id='gl_"+match.pid+"' value='"+gl+"' placeholder='-'>"
         +"<span class='score-sep'>-</span>"
         +"<input class='score-input' type='number' min='0' max='20' id='gv_"+match.pid+"' value='"+gv+"' placeholder='-'>"
