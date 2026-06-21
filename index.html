@@ -670,9 +670,15 @@ function loadRivales(){
   content.innerHTML=html;
 }
 
+function normalizeTeamName(n){
+  if(!n)return n;
+  var fixes={"FRANCIA":"Francia","ESPANA":"Espana","BRASIL":"Brasil","ARGENTINA":"Argentina","PORTUGAL":"Portugal"};
+  return fixes[n.toUpperCase()]||n.charAt(0).toUpperCase()+n.slice(1).toLowerCase();
+}
+
 function renderStats(){
   var content=document.getElementById("statsContent");
-  var cc={};SEED.participants.forEach(function(p){var c=SEED.champions[p]&&SEED.champions[p].campeon;if(c)cc[c]=(cc[c]||0)+1;});
+  var cc={};SEED.participants.forEach(function(p){var c=SEED.champions[p]&&normalizeTeamName(SEED.champions[p].campeon);if(c)cc[c]=(cc[c]||0)+1;});
   var sc=Object.keys(cc).map(function(t){return[t,cc[t]];}).sort(function(a,b){return b[1]-a[1];});
   var mx=sc[0]?sc[0][1]:1;
   var tE=0,tR=0,tM=0;
