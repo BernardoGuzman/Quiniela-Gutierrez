@@ -780,13 +780,13 @@ function renderAdminPanel(){
   container.innerHTML=html;
 }
 
-function openAdmin(){if(adminUnlocked2){showTab("admin",document.getElementById("adminNavBtn"));return;}pinBuffer2="";updatePinDots2();document.getElementById("pinError").textContent="";document.getElementById("pinOverlay").style.display="flex";}
-function pinKey(d){if(pinBuffer2.length>=4)return;pinBuffer2+=d;updatePinDots2();if(pinBuffer2.length===4)setTimeout(checkPin2,120);}
-function pinDel(){pinBuffer2=pinBuffer2.slice(0,-1);updatePinDots2();}
-function pinCancel(){document.getElementById("pinOverlay").style.display="none";pinBuffer2="";}
-function updatePinDots2(state){for(var i=0;i<4;i++){var d=document.getElementById("d"+i);d.className="pin-dot"+(state==="error"?" error":pinBuffer2.length>i?" filled":"");}}
-function checkPin2(){if(pinBuffer2===CORRECT_PIN){document.getElementById("pinOverlay").style.display="none";adminUnlocked2=true;pinBuffer2="";showTab("admin",document.getElementById("adminNavBtn"));}else{updatePinDots2("error");document.getElementById("pinError").textContent="PIN incorrecto";setTimeout(function(){pinBuffer2="";updatePinDots2();document.getElementById("pinError").textContent="";},900);}}
-function adminLogout(){adminUnlocked2=false;showTab("ranking",document.querySelectorAll(".nav-btn")[0]);}
+function openAdmin(){if(adminUnlocked){showTab("admin",document.getElementById("adminNavBtn"));return;}pinBuffer="";updatePinDots();document.getElementById("pinError").textContent="";document.getElementById("pinOverlay").style.display="flex";}
+function pinKey(d){if(pinBuffer.length>=4)return;pinBuffer+=d;updatePinDots();if(pinBuffer.length===4)setTimeout(checkPin,120);}
+function pinDel(){pinBuffer=pinBuffer.slice(0,-1);updatePinDots();}
+function pinCancel(){document.getElementById("pinOverlay").style.display="none";pinBuffer="";}
+function updatePinDots(state){for(var i=0;i<4;i++){var d=document.getElementById("d"+i);d.className="pin-dot"+(state==="error"?" error":pinBuffer.length>i?" filled":"");}}
+function checkPin(){if(pinBuffer===CORRECT_PIN){document.getElementById("pinOverlay").style.display="none";adminUnlocked=true;pinBuffer="";showTab("admin",document.getElementById("adminNavBtn"));}else{updatePinDots("error");document.getElementById("pinError").textContent="PIN incorrecto";setTimeout(function(){pinBuffer="";updatePinDots();document.getElementById("pinError").textContent="";},900);}}
+function adminLogout(){adminUnlocked=false;showTab("ranking",document.querySelectorAll(".nav-btn")[0]);}
 
 function refreshAll(){
   renderTodayBanner();
