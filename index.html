@@ -1076,7 +1076,7 @@ function renderAdminPanel(){
     html+="<div class='admin-match-row' style='"+(hasResult?"background:#f0faf5;":"")+"'>"
       +"<div class='admin-teams'>"+teamsStr+"<span>"+(hasResult?"Ganador: "+ganador+" ✓":"Por jugar")+"</span></div>"
       +"<select id='ko_"+match.pid+"' style='padding:6px 10px;border:2px solid var(--border);border-radius:8px;font-size:13px;background:white;min-width:180px;cursor:pointer'>"+opts+"</select>"
-      +"<button class='save-match-btn' onclick='saveKnockoutResult(\"'+match.pid+'\")'  id='savebtn_ko_"+match.pid+"'>Guardar</button>"
+      +"<button class='save-match-btn' onclick='saveKnockoutResult(this.dataset.pid)' data-pid='"+match.pid+"' id='savebtn_ko_"+match.pid+"'>Guardar</button>"
       +"</div>";
   });
 
@@ -1182,8 +1182,8 @@ window.saveGroupResult = function(pid) {
 // ---- SAVE KNOCKOUT RESULT ----
 window.saveKnockoutResult = function(pid) {
   var el = document.getElementById("ko_" + pid);
-  if (!el) return;
-  var ganador = el.value; // dropdown value, no trim needed
+  if (!el) { console.log("No element found for ko_"+pid); return; }
+  var ganador = el.value;
   if (!ganador) { alert("Selecciona un equipo ganador"); return; }
   // Find match info
   var match = SEED.knockoutMatches.find(function(m) { return m.pid === pid; });
