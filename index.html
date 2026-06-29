@@ -1050,6 +1050,15 @@ function renderAdminPanel(){
   var sortedKo=SEED.knockoutMatches.slice().sort(function(a,b){return(faseOrder[a.fase]||9)-(faseOrder[b.fase]||9);});
   var lastFase="";
   sortedKo.forEach(function(match){
+    // Only show if previous phase is complete
+    var fO={dieciseisavos:1,octavos:2,cuartos:3,semis:4,tercero:5,final:6};
+    var thisOrder=fO[match.fase];
+    if(thisOrder>1){
+      var prevFase=Object.keys(fO).find(function(f){return fO[f]===thisOrder-1;});
+      var prevMs=SEED.knockoutMatches.filter(function(m){return m.fase===prevFase;});
+      var allDone=prevMs.every(function(m){var r=getKnockoutResult(m.pid);return r&&r.ganador;});
+      if(!allDone)return;
+    }
     var liveRes=getKnockoutResult(match.pid);
     var ganador=liveRes&&liveRes.ganador?liveRes.ganador:"";
     var hasResult=ganador!=="";
@@ -1057,15 +1066,17 @@ function renderAdminPanel(){
       html+="<div style='font-size:10px;font-weight:700;color:var(--green);margin:12px 0 4px;text-transform:uppercase;letter-spacing:0.5px'>"+faseNames[match.fase]+"</div>";
       lastFase=match.fase;
     }
-    // Use SEED.knockoutResults for real bracket teams (always available)
-  var seedKoRes=SEED.knockoutResults[match.pid]||{};
-  var realLocal=seedKoRes.local||match.local||"";
-  var realVis=seedKoRes.visitante||match.visitante||"";
-  var teamsStr=realLocal&&realVis?realLocal+" vs "+realVis:(match.cruce||String(match.pid));
+    var seedKoRes=SEED.knockoutResults[match.pid]||{};
+    var realLocal=seedKoRes.local||match.local||"";
+    var realVis=seedKoRes.visitante||match.visitante||"";
+    var teamsStr=realLocal&&realVis?realLocal+" vs "+realVis:(match.cruce||String(match.pid));
+    var opts="<option value=''>-- Selecciona ganador --</option>";
+    if(realLocal)opts+="<option value='"+realLocal+"'"+(ganador===realLocal?" selected":"")+">"+realLocal+"</option>";
+    if(realVis)opts+="<option value='"+realVis+"'"+(ganador===realVis?" selected":"")+">"+realVis+"</option>";
     html+="<div class='admin-match-row' style='"+(hasResult?"background:#f0faf5;":"")+"'>"
       +"<div class='admin-teams'>"+teamsStr+"<span>"+(hasResult?"Ganador: "+ganador+" ✓":"Por jugar")+"</span></div>"
-      +"<input class='score-input' type='text' id='ko_"+match.pid+"' value='"+ganador+"' placeholder='Equipo ganador' style='width:160px;font-size:12px;'>"
-      +"<button class='save-match-btn' onclick='saveKnockoutResult(\""+match.pid+"\")' id='savebtn_ko_"+match.pid+"'>Guardar</button>"
+      +"<select id='ko_"+match.pid+"' style='padding:6px 10px;border:2px solid var(--border);border-radius:8px;font-size:13px;background:white;min-width:180px;cursor:pointer'>"+opts+"</select>"
+      +"<button class='save-match-btn' onclick='saveKnockoutResult(\"'+match.pid+'\")'  id='savebtn_ko_"+match.pid+"'>Guardar</button>"
       +"</div>";
   });
 
