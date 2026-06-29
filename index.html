@@ -493,15 +493,15 @@ function computeRankings(){
   });
 
   // Calculate ALL knockout points live (dieciseisavos onwards)
-  // Add octavos onwards from live Firebase results
+  // When winner of 16avos is confirmed → give octavos points
+  // When winner of octavos is confirmed → give cuartos points, etc.
   SEED.knockoutMatches.forEach(function(match){
-    if(match.fase==="dieciseisavos")return; // already calculated in Excel
     var real=getKnockoutResult(match.pid);
-    Object.keys(match.predictions).forEach(function(name){
-      var pred=match.predictions[name];
-      if(!pred)return;
-      var pts=ptsKnockout(pred,real,match.fase,match.pid);
-      scores[name]=(scores[name]||0)+pts;
+    if(!real||!real.ganador)return;
+    var winnerTeam=real.ganador;
+    SEED.participants.forEach(function(name){
+      var pts=ptsForParticipant(name, winnerTeam, match.pid);
+      if(pts>0)scores[name]=(scores[name]||0)+pts;
     });
   });
 
