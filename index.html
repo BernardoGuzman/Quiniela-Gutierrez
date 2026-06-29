@@ -373,9 +373,13 @@ function getGroupResult(pid){
 
 function getKnockoutResult(pid){
   var key=String(pid);
-  if(liveKnockout[key]&&liveKnockout[key].ganador)return liveKnockout[key];
-  var seedRes=SEED.knockoutResults[key];
-  if(seedRes&&seedRes.ganador)return seedRes;
+  var seedTeams=SEED.knockoutResults[key]||{};
+  // Check live Firebase first for ganador
+  if(liveKnockout[key]&&liveKnockout[key].ganador){
+    // Always use SEED for team names, Firebase only for ganador
+    return {ganador:liveKnockout[key].ganador, local:seedTeams.local||liveKnockout[key].local||"", visitante:seedTeams.visitante||liveKnockout[key].visitante||""};
+  }
+  if(seedTeams.ganador)return seedTeams;
   return null;
 }
 
@@ -1363,10 +1367,10 @@ window.saveKnockoutResult = function(pid) {
   if (!el) { console.log("No element found for ko_"+pid); return; }
   var ganador = el.value;
   if (!ganador) { alert("Selecciona un equipo ganador"); return; }
-  // Find match info
-  var match = SEED.knockoutMatches.find(function(m) { return m.pid === pid; });
-  var local = match ? match.local : "";
-  var visitante = match ? match.visitante : "";
+  // Use real bracket teams from SEED.knockoutResults
+  var seedRes = SEED.knockoutResults[pid] || {};
+  var local = seedRes.local || "";
+  var visitante = seedRes.visitante || "";
   var updateObj = {};
   updateObj["results/knockout/" + pid] = {ganador: ganador, local: local, visitante: visitante};
   update(ref(db), updateObj).then(function() {
