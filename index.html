@@ -1176,21 +1176,31 @@ function resolveTeam(pid, side){
     return side==="local"?(ko.local||"?"):(ko.visitante||"?");
   }
 
-  // For later rounds, resolve from bracketTree
-  var tree = SEED.bracketTree[pid];
+  // Hardcoded bracket tree
+  var BT={
+    "P89":{"local_from":"P74","visitante_from":"P77"},
+    "P90":{"local_from":"P73","visitante_from":"P75"},
+    "P91":{"local_from":"P76","visitante_from":"P78"},
+    "P92":{"local_from":"P79","visitante_from":"P80"},
+    "P93":{"local_from":"P83","visitante_from":"P84"},
+    "P94":{"local_from":"P81","visitante_from":"P82"},
+    "P95":{"local_from":"P86","visitante_from":"P88"},
+    "P96":{"local_from":"P85","visitante_from":"P87"},
+    "P97":{"local_from":"P89","visitante_from":"P90"},
+    "P98":{"local_from":"P93","visitante_from":"P94"},
+    "P99":{"local_from":"P91","visitante_from":"P92"},
+    "P100":{"local_from":"P95","visitante_from":"P96"},
+    "P101":{"local_from":"P97","visitante_from":"P98"},
+    "P102":{"local_from":"P99","visitante_from":"P100"},
+    "P103":{"loser_from":"P101","loser2_from":"P102"},
+    "P104":{"local_from":"P101","visitante_from":"P102"}
+  };
+  var tree = BT[pid];
   if(!tree)return "?";
-
-  if(side==="local"){
-    var fromPid = tree.local_from;
-    if(!fromPid)return "?";
-    var fromRes = getKnockoutResult(fromPid);
-    return fromRes&&fromRes.ganador?fromRes.ganador:"Gan. "+fromPid;
-  } else {
-    var fromPid2 = tree.visitante_from;
-    if(!fromPid2)return "?";
-    var fromRes2 = getKnockoutResult(fromPid2);
-    return fromRes2&&fromRes2.ganador?fromRes2.ganador:"Gan. "+fromPid2;
-  }
+  var fromPid = side==="local"?tree.local_from:tree.visitante_from;
+  if(!fromPid)return "?";
+  var fromRes = getKnockoutResult(fromPid);
+  return fromRes&&fromRes.ganador?fromRes.ganador:"?";
 }
 
 function getMatchTeams(pid){
