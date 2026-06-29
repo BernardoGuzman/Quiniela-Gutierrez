@@ -420,25 +420,44 @@ function ptsKnockoutPred(cls, fase){
   return 0;
 }
 
-function ptsKnockout(predWinner, realResult, fase){
-  if(!realResult||!realResult.ganador||!predWinner)return 0;
-  var ganador=realResult.ganador;
+// Get all teams that advanced in a given phase (from live results)
+function getAdvancedTeams(fase){
+  var advanced=[];
+  SEED.knockoutMatches.forEach(function(m){
+    if(m.fase!==fase)return;
+    var r=getKnockoutResult(m.pid);
+    if(r&&r.ganador)advanced.push(r.ganador);
+  });
+  return advanced;
+}
+
+function ptsKnockout(predWinner, realResult, fase, matchPid){
+  if(!predWinner)return 0;
   var r=RULES;
-  if(predWinner===ganador){
+
+  // Check if predicted team won this exact match (correct slot)
+  if(realResult&&realResult.ganador&&predWinner===realResult.ganador){
     if(fase==="dieciseisavos")return r.dieci_correcto;
     if(fase==="octavos")return r.octavos_correcto;
     if(fase==="cuartos")return r.cuartos_correcto;
     if(fase==="semis")return r.semis_correcto;
     if(fase==="final")return r.final_finalista;
     if(fase==="tercero")return r.tercero;
-  } else {
-    // Team advanced in this round (wrong slot)
-    if(fase==="dieciseisavos")return r.dieci_erroneo;
-    if(fase==="octavos")return r.octavos_erroneo;
-    if(fase==="cuartos")return r.cuartos_erroneo;
-    if(fase==="semis")return r.semis_erroneo;
-    if(fase==="final")return r.final_finalista; // both finalists = 12 pts each
-    if(fase==="tercero")return 0;
+  }
+
+  // Check if predicted team advanced in this phase but in a different slot (erroneo)
+  if(realResult&&realResult.ganador){
+    // Team didn't win this match - check if it won another match in same phase
+    var allAdvanced=getAdvancedTeams(fase);
+    if(allAdvanced.indexOf(predWinner)>=0){
+      // Team IS in this phase but in wrong slot
+      if(fase==="dieciseisavos")return r.dieci_erroneo;
+      if(fase==="octavos")return r.octavos_erroneo;
+      if(fase==="cuartos")return r.cuartos_erroneo;
+      if(fase==="semis")return r.semis_erroneo;
+      if(fase==="final")return r.final_finalista;
+      if(fase==="tercero")return 0;
+    }
   }
   return 0;
 }
@@ -454,19 +473,19 @@ function computeRankings(){
   // Start from Excel pre-calculated base (grupos + dieci already computed)
   var scores={};
   SEED.rankings.forEach(function(r){
-    // Base = grupos + dieci from Excel (already correct)
-    scores[r.name] = (r.grupos||0) + (r.dieci||0);
+    // grupos from Excel, knockout calculated live
+    scores[r.name] = (r.grupos||0);
   });
 
-  // Add live knockout points (octavos onwards - as results come in)
+  // Calculate ALL knockout points live (dieciseisavos onwards)
   SEED.knockoutMatches.forEach(function(match){
-    if(match.fase==="dieciseisavos")return; // already in Excel
+    // process all knockout phases
     var real=getKnockoutResult(match.pid);
     if(!real||!real.ganador)return;
     Object.keys(match.predictions).forEach(function(name){
       var pred=match.predictions[name];
       if(!pred)return;
-      var pts=ptsKnockout(pred,real,match.fase);
+      var pts=ptsKnockout(pred,real,match.fase,match.pid);
       scores[name]=(scores[name]||0)+pts;
     });
   });
@@ -513,7 +532,7 @@ function getParticipantStats(name){
     var pred=match.predictions[name];
     var real=getKnockoutResult(match.pid);
     if(!pred)return;
-    var pts=ptsKnockout(pred,real,match.fase);
+    var pts=ptsKnockout(pred,real,match.fase,match.pid);
     var cls=!real||!real.ganador?"pending":(pred===real.ganador?"correcto":"erroneo");
     totalPts+=pts;
     knockoutDetails.push({match:match,pred:pred,real:real,cls:cls,pts:pts,tipo:"knockout"});
@@ -718,7 +737,7 @@ function renderKnockoutMatchCard(match,viewAs){
   var hasResult=real&&real.ganador;
   var myPred=viewAs&&match.predictions[viewAs];
   var myCls=myPred&&hasResult?(myPred===real.ganador?"correcto":"erroneo"):(myPred?"pending":null);
-  var myPts=myPred&&hasResult?ptsKnockout(myPred,real,match.fase):0;
+  var myPts=myPred&&hasResult?ptsKnockout(myPred,real,match.fase,match.pid):0;
 
   var scoreHtml=hasResult
     ?"<div class='score-real' style='font-size:13px;padding:4px 8px'>"+real.ganador+"</div>"
