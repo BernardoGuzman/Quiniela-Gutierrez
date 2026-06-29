@@ -186,6 +186,25 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg);color:va
   .admin-match-row{grid-template-columns:1fr auto auto auto;}
 }
 
+
+.bracket-wrap{overflow-x:auto;padding:16px 0;}
+.bracket{display:flex;gap:0;min-width:900px;}
+.bracket-round{display:flex;flex-direction:column;flex:1;min-width:160px;}
+.bracket-round-title{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);text-align:center;padding:8px 4px 12px;border-bottom:2px solid var(--border);margin-bottom:8px;}
+.bracket-matches{display:flex;flex-direction:column;justify-content:space-around;flex:1;gap:4px;padding:0 4px;}
+.bracket-match{background:white;border:1px solid var(--border);border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.bracket-match.has-result{border-color:var(--green);}
+.bracket-team{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;font-size:12px;font-weight:600;min-height:28px;}
+.bracket-team.winner{background:var(--exact-bg);color:var(--green);}
+.bracket-team.loser{color:var(--muted);font-weight:400;}
+.bracket-team.tbd{color:var(--border);font-style:italic;font-weight:400;}
+.bracket-team-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bracket-divider{height:1px;background:var(--border);}
+.bracket-champion{background:linear-gradient(135deg,var(--green),#004d35);color:white;border-radius:12px;padding:16px;text-align:center;margin:0 8px;}
+.bracket-champion-title{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;opacity:0.7;margin-bottom:6px;}
+.bracket-champion-name{font-size:18px;font-weight:800;}
+.bracket-champion-trophy{font-size:32px;margin-bottom:4px;}
+.my-pick-badge{font-size:10px;padding:1px 5px;border-radius:4px;background:var(--gold);color:#1a1a1a;margin-left:4px;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -236,6 +255,7 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg);color:va
   <button class="nav-btn" onclick="showTab('simulador',this)">Puedo ganar?</button>
   <button class="nav-btn" onclick="showTab('rivales',this)">Rivales</button>
   <button class="nav-btn" onclick="showTab('stats',this)">Stats</button>
+  <button class="nav-btn" onclick="showTab('bracket',this)">🏆 Bracket</button>
   <button class="nav-btn" onclick="openAdmin()" id="adminNavBtn">Admin</button>
 </div>
 
@@ -268,6 +288,7 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;background:var(--bg);color:va
     <div id="rivalesContent"></div>
   </div>
   <div class="section" id="tab-stats"><div id="statsContent"></div></div>
+  <div class="section" id="tab-bracket"><div id="bracketContent"></div></div>
   <div class="section" id="tab-admin">
     <div class="admin-section">
       <div class="admin-title">Panel de resultados</div>
@@ -578,6 +599,7 @@ function showTab(tab,btn){
   if(btn)btn.classList.add("active");
   if(tab==="stats")renderStats();
   if(tab==="admin")renderAdminPanel();
+  if(tab==="bracket")renderBracket();
 }
 
 // ---- OWNER ----
@@ -766,7 +788,16 @@ function renderMatches(filter,grupoFilter){
   if(!grupoFilter||grupoFilter==="knockout"){
     var fases=["dieciseisavos","octavos","cuartos","semis","tercero","final"];
     var faseNames={dieciseisavos:"Dieciseisavos de Final",octavos:"Octavos de Final",cuartos:"Cuartos de Final",semis:"Semifinales",tercero:"Tercer Lugar",final:"Final"};
+    var fO2={dieciseisavos:1,octavos:2,cuartos:3,semis:4,tercero:5,final:6};
     fases.forEach(function(fase){
+      // Hide phases where previous round has no results yet
+      var thisOrd=fO2[fase];
+      if(thisOrd>1){
+        var prevF=Object.keys(fO2).find(function(f){return fO2[f]===thisOrd-1;});
+        var prevMs=SEED.knockoutMatches.filter(function(m){return m.fase===prevF;});
+        var anyResult=prevMs.some(function(m){var r=getKnockoutResult(m.pid);return r&&r.ganador;});
+        if(!anyResult)return;
+      }
       var faseMatches=SEED.knockoutMatches.filter(function(m){
         return m.fase===fase&&(!filter||(m.local+m.visitante+m.cruce).toLowerCase().indexOf(filter.toLowerCase())>=0);
       });
@@ -1102,6 +1133,7 @@ function refreshAll(){
   if(myName)showMyBanner();
   if(document.getElementById("tab-admin").classList.contains("active"))renderAdminPanel();
   if(document.getElementById("tab-stats").classList.contains("active"))renderStats();
+  if(document.getElementById("tab-bracket").classList.contains("active"))renderBracket();
 }
 
 function initUI(){
@@ -1122,6 +1154,93 @@ function initUI(){
   renderTodayBanner();renderRanking();renderMatches();
   if(myName){fichaS.value=myName;loadFicha();simS.value=myName;runSimulator();rivalS.value=myName;loadRivales();showMyBanner();}
   if(!myName){document.getElementById("ownerOverlay").style.display="flex";}
+}
+
+
+// ---- BRACKET ----
+function renderBracket(){
+  var content=document.getElementById("bracketContent");
+  var faseOrder=["dieciseisavos","octavos","cuartos","semis","final"];
+  var faseNames={dieciseisavos:"16avos",octavos:"Octavos",cuartos:"Cuartos",semis:"Semis",final:"Final"};
+  var myChamp=myName&&SEED.champions[myName]?normalizeTeamName(SEED.champions[myName].campeon):"";
+
+  // Check if any knockout result exists
+  var anyResult=SEED.knockoutMatches.some(function(m){var r=getKnockoutResult(m.pid);return r&&r.ganador;});
+  if(!anyResult){
+    content.innerHTML="<div style='text-align:center;padding:40px 20px;color:var(--muted)'>"
+      +"<div style='font-size:40px;margin-bottom:12px'>🏆</div>"
+      +"<div style='font-size:16px;font-weight:700;margin-bottom:8px'>El bracket se llenará conforme avance el torneo</div>"
+      +"<div style='font-size:13px'>Los Dieciseisavos de Final empiezan pronto</div>"
+      +"</div>";
+    return;
+  }
+
+  var html="<div class='bracket-wrap'><div class='bracket'>";
+
+  faseOrder.forEach(function(fase){
+    var matches=SEED.knockoutMatches.filter(function(m){return m.fase===fase;});
+    if(!matches.length)return;
+
+    // Only show phase if at least one match in previous phase has result
+    var fO={dieciseisavos:1,octavos:2,cuartos:3,semis:4,final:5};
+    var thisOrd=fO[fase];
+    if(thisOrd>1){
+      var prevF=Object.keys(fO).find(function(f){return fO[f]===thisOrd-1;});
+      var prevMs=SEED.knockoutMatches.filter(function(m){return m.fase===prevF;});
+      var anyPrevResult=prevMs.some(function(m){var r=getKnockoutResult(m.pid);return r&&r.ganador;});
+      if(!anyPrevResult)return;
+    }
+
+    html+="<div class='bracket-round'>";
+    html+="<div class='bracket-round-title'>"+faseNames[fase]+"</div>";
+    html+="<div class='bracket-matches'>";
+
+    matches.forEach(function(m){
+      var ko=SEED.knockoutResults[m.pid]||{};
+      var local=ko.local||m.local||"?";
+      var visitante=ko.visitante||m.visitante||"?";
+      var res=getKnockoutResult(m.pid);
+      var ganador=res&&res.ganador?res.ganador:null;
+      var hasRes=!!ganador;
+
+      var localClass=hasRes?(ganador===local?"winner":"loser"):"";
+      var visClass=hasRes?(ganador===visitante?"winner":"loser"):"";
+
+      // My pick
+      var myPick=myName&&m.predictions[myName]?m.predictions[myName]:"";
+      var myPickLocal=myPick===local;
+      var myPickVis=myPick===visitante;
+
+      html+="<div class='bracket-match"+(hasRes?" has-result":"")+"'>";
+      html+="<div class='bracket-team "+localClass+"'>";
+      html+="<span class='bracket-team-name'>"+local+"</span>";
+      if(myPickLocal)html+="<span class='my-pick-badge'>yo</span>";
+      html+="</div>";
+      html+="<div class='bracket-divider'></div>";
+      html+="<div class='bracket-team "+visClass+"'>";
+      html+="<span class='bracket-team-name'>"+visitante+"</span>";
+      if(myPickVis)html+="<span class='my-pick-badge'>yo</span>";
+      html+="</div>";
+      html+="</div>";
+    });
+
+    html+="</div></div>";
+  });
+
+  // Champion
+  var finalMatch=SEED.knockoutMatches.find(function(m){return m.fase==="final";});
+  var finalRes=finalMatch?getKnockoutResult(finalMatch.pid):null;
+  var champion=finalRes&&finalRes.ganador?finalRes.ganador:null;
+  html+="<div style='display:flex;align-items:center;padding:0 4px;'>";
+  html+="<div class='bracket-champion'>";
+  html+="<div class='bracket-champion-trophy'>🏆</div>";
+  html+="<div class='bracket-champion-title'>Campeón</div>";
+  html+="<div class='bracket-champion-name'>"+(champion||"?")+"</div>";
+  if(myChamp)html+="<div style='font-size:11px;margin-top:8px;opacity:0.7'>Tu pick: "+myChamp+(champion&&myChamp===champion?" ✓":"")+"</div>";
+  html+="</div></div>";
+
+  html+="</div></div>";
+  content.innerHTML=html;
 }
 
 // Expose to global scope
