@@ -751,10 +751,10 @@ function renderKnockoutMatchCard(match,viewAs){
     return "<div class='pred-item "+cls+(isMe?" me":"")+"'><span class='pred-name'>"+name.split(" ")[0]+(isMe?" 👤":"")+"</span><span class='pred-score "+cls+"'>"+pred+"</span></div>";
   }).join("");
 
-  // Use real bracket teams from knockoutResults, fallback to predicted teams
-  var realRes2=getKnockoutResult(match.pid);
-  var realLocal=realRes2&&realRes2.local?realRes2.local:match.local;
-  var realVis=realRes2&&realRes2.visitante?realRes2.visitante:match.visitante;
+  // Resolve teams dynamically from bracket
+  var dynTeams=getMatchTeams(match.pid);
+  var realLocal=dynTeams.local;
+  var realVis=dynTeams.visitante;
   var teamsStr=realLocal&&realVis?realLocal+" vs "+realVis:(match.cruce||match.pid);
   return "<div class='match-card' id='match-k-"+match.pid+"'>"
     +"<div class='match-header' onclick='toggleMatch(\"k-"+match.pid+"\")'>"
