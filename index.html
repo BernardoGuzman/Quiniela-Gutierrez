@@ -1222,50 +1222,11 @@ function renderBracket(){
   var faseNames={dieciseisavos:"16avos",octavos:"Octavos",cuartos:"Cuartos",semis:"Semis",tercero:"3er Lugar",final:"Final"};
   var myChamp=myName&&SEED.champions[myName]?normalizeTeamName(SEED.champions[myName].campeon):"";
 
-  // Check if any 16avos result exists
-  var anyResult=SEED.knockoutMatches.some(function(m){
-    return m.fase==="dieciseisavos"&&getKnockoutResult(m.pid)&&getKnockoutResult(m.pid).ganador;
-  });
-
-  if(!anyResult){
-    content.innerHTML="<div style='text-align:center;padding:40px 20px;color:var(--muted)'>"
-      +"<div style='font-size:40px;margin-bottom:12px'>🏆</div>"
-      +"<div style='font-size:16px;font-weight:700;margin-bottom:8px'>El bracket se llenará conforme avance el torneo</div>"
-      +"<div style='font-size:13px'>Los Dieciseisavos de Final empiezan pronto. Los cruces ya están definidos abajo.</div>"
-      +"</div>"
-      +"<div style='max-width:600px;margin:0 auto;'>"
-      +"<div style='font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:12px'>Cruces de Dieciseisavos</div>";
-
-    // Show 16avos bracket
-    SEED.knockoutMatches.filter(function(m){return m.fase==="dieciseisavos";}).forEach(function(m){
-      var ko=SEED.knockoutResults[m.pid]||{};
-      var local=ko.local||"?"; var vis=ko.visitante||"?";
-      content.innerHTML+="<div style='background:white;border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;font-size:13px;'>"
-        +"<span style='font-weight:600'>"+local+"</span>"
-        +"<span style='color:var(--muted);font-size:11px'>vs</span>"
-        +"<span style='font-weight:600'>"+vis+"</span>"
-        +"</div>";
-    });
-
-    content.innerHTML += "</div>";
-    return;
-  }
-
   var html="<div class='bracket-wrap'><div class='bracket'>";
 
   faseOrder.forEach(function(fase){
     var matches=SEED.knockoutMatches.filter(function(m){return m.fase===fase;});
     if(!matches.length)return;
-
-    // Only show phase if at least one match in previous phase has result
-    var fO={dieciseisavos:1,octavos:2,cuartos:3,semis:4,final:5};
-    var thisOrd=fO[fase];
-    if(thisOrd>1){
-      var prevF=Object.keys(fO).find(function(f){return fO[f]===thisOrd-1;});
-      var prevMs=SEED.knockoutMatches.filter(function(m){return m.fase===prevF;});
-      var anyPrev=prevMs.some(function(m){var r=getKnockoutResult(m.pid);return r&&r.ganador;});
-      if(!anyPrev)return;
-    }
 
     html+="<div class='bracket-round'>";
     html+="<div class='bracket-round-title'>"+faseNames[fase]+"</div>";
