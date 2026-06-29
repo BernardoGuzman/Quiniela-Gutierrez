@@ -420,46 +420,61 @@ function ptsKnockoutPred(cls, fase){
   return 0;
 }
 
-// Get all teams that advanced in a given phase (from live results)
-function getAdvancedTeams(fase){
-  var advanced=[];
-  SEED.knockoutMatches.forEach(function(m){
-    if(m.fase!==fase)return;
-    var r=getKnockoutResult(m.pid);
-    if(r&&r.ganador)advanced.push(r.ganador);
-  });
-  return advanced;
+// Bracket tree for next-round lookup
+var NEXT_ROUND_MAP={
+  "P73":"P90","P74":"P89","P75":"P90","P76":"P91","P77":"P89","P78":"P91",
+  "P79":"P92","P80":"P92","P81":"P94","P82":"P94","P83":"P93","P84":"P93",
+  "P85":"P96","P86":"P95","P87":"P96","P88":"P95",
+  "P89":"P97","P90":"P97","P91":"P99","P92":"P99",
+  "P93":"P98","P94":"P98","P95":"P100","P96":"P100",
+  "P97":"P101","P98":"P101","P99":"P102","P100":"P102",
+  "P101":"P104","P102":"P104"
+};
+
+// Points are given for REACHING the next round
+// When winner of PX is confirmed, they classified to the next round
+// ptsForReaching(fase) = points for reaching that fase
+function ptsForReaching(fase){
+  var r=RULES;
+  if(fase==="octavos")return{correcto:r.octavos_correcto,erroneo:r.octavos_erroneo};
+  if(fase==="cuartos")return{correcto:r.cuartos_correcto,erroneo:r.cuartos_erroneo};
+  if(fase==="semis")return{correcto:r.semis_correcto,erroneo:r.semis_erroneo};
+  if(fase==="final")return{correcto:r.final_finalista,erroneo:r.final_finalista};
+  if(fase==="tercero")return{correcto:r.tercero,erroneo:0};
+  return{correcto:0,erroneo:0};
 }
 
-function ptsKnockout(predWinner, realResult, fase, matchPid){
-  if(!predWinner)return 0;
-  var r=RULES;
+// For a given match PX with confirmed winner:
+// - Find what next round (PY) the winner goes to
+// - Give points based on who predicted the winner IN PY (correct slot) or
+//   in any other match of that same fase (wrong slot)
+function ptsForParticipant(name, winnerTeam, currentPid){
+  var nextPid=NEXT_ROUND_MAP[currentPid];
+  if(!nextPid)return 0; // no next round (loser bracket etc)
 
-  // Check if predicted team won this exact match (correct slot)
-  if(realResult&&realResult.ganador&&predWinner===realResult.ganador){
-    if(fase==="dieciseisavos")return r.dieci_correcto;
-    if(fase==="octavos")return r.octavos_correcto;
-    if(fase==="cuartos")return r.cuartos_correcto;
-    if(fase==="semis")return r.semis_correcto;
-    if(fase==="final")return r.final_finalista;
-    if(fase==="tercero")return r.tercero;
-  }
+  // Find the next round match
+  var nextMatch=SEED.knockoutMatches.find(function(m){return m.pid===nextPid;});
+  if(!nextMatch)return 0;
 
-  // Check if predicted team advanced in this phase but in a different slot (erroneo)
-  if(realResult&&realResult.ganador){
-    // Team didn't win this match - check if it won another match in same phase
-    var allAdvanced=getAdvancedTeams(fase);
-    if(allAdvanced.indexOf(predWinner)>=0){
-      // Team IS in this phase but in wrong slot
-      if(fase==="dieciseisavos")return r.dieci_erroneo;
-      if(fase==="octavos")return r.octavos_erroneo;
-      if(fase==="cuartos")return r.cuartos_erroneo;
-      if(fase==="semis")return r.semis_erroneo;
-      if(fase==="final")return r.final_finalista;
-      if(fase==="tercero")return 0;
-    }
+  var nextFase=nextMatch.fase;
+  var pts=ptsForReaching(nextFase);
+  var pred=nextMatch.predictions[name];
+  if(!pred)return 0;
+
+  // Correct slot: predicted this team in the exact next match
+  if(pred===winnerTeam)return pts.correcto;
+
+  // Wrong slot: predicted this team in a different match of the same fase
+  var sameFaseMatches=SEED.knockoutMatches.filter(function(m){return m.fase===nextFase&&m.pid!==nextPid;});
+  for(var i=0;i<sameFaseMatches.length;i++){
+    if(sameFaseMatches[i].predictions[name]===winnerTeam)return pts.erroneo;
   }
   return 0;
+}
+
+// Legacy function kept for compatibility
+function ptsKnockout(predWinner, realResult, fase, matchPid){
+  return 0; // replaced by ptsForParticipant
 }
 
 function normalizeTeamName(n){
@@ -473,15 +488,15 @@ function computeRankings(){
   // Start from Excel pre-calculated base (grupos + dieci already computed)
   var scores={};
   SEED.rankings.forEach(function(r){
-    // grupos from Excel, knockout calculated live
-    scores[r.name] = (r.grupos||0);
+    // Base = grupos + dieci from Excel (already verified correct)
+    scores[r.name] = (r.grupos||0) + (r.dieci||0);
   });
 
   // Calculate ALL knockout points live (dieciseisavos onwards)
+  // Add octavos onwards from live Firebase results
   SEED.knockoutMatches.forEach(function(match){
-    // process all knockout phases
+    if(match.fase==="dieciseisavos")return; // already calculated in Excel
     var real=getKnockoutResult(match.pid);
-    if(!real||!real.ganador)return;
     Object.keys(match.predictions).forEach(function(name){
       var pred=match.predictions[name];
       if(!pred)return;
@@ -507,8 +522,9 @@ function computeRankings(){
     .sort(function(a,b){ return b.total-a.total; })
     .map(function(item,idx){
       var s=SEED.rankings.find(function(r){ return r.name===item.name; })||{};
+      var liveElim=item.total-(s.grupos||0)-(s.dieci||0); // live octavos+
       return{pos:idx+1,name:item.name,total:item.total,
-        grupos:s.grupos||0,dieci:s.dieci||0,octavos:s.octavos||0,
+        grupos:s.grupos||0,dieci:s.dieci||0,octavos:liveElim>0?liveElim:0,
         cuartos:s.cuartos||0,semis:s.semis||0,final_pts:s.final_pts||0,
         tercero:s.tercero||0,campeon_pts:s.campeon_pts||0};
     });
