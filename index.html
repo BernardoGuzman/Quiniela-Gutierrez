@@ -1158,20 +1158,82 @@ function initUI(){
 
 
 // ---- BRACKET ----
+
+// Resolve team name for a bracket slot dynamically
+function resolveTeam(pid, side){
+  // Check if this pid has a direct result
+  var directRes = SEED.knockoutResults[pid];
+  var liveRes = getKnockoutResult(pid);
+
+  // For dieciseisavos, use knockoutResults for team names
+  var dieci16 = SEED.knockoutMatches.find(function(m){return m.pid===pid&&m.fase==="dieciseisavos";});
+  if(dieci16){
+    var ko = SEED.knockoutResults[pid]||{};
+    return side==="local"?(ko.local||"?"):(ko.visitante||"?");
+  }
+
+  // For later rounds, resolve from bracketTree
+  var tree = SEED.bracketTree[pid];
+  if(!tree)return "?";
+
+  if(side==="local"){
+    var fromPid = tree.local_from;
+    if(!fromPid)return "?";
+    var fromRes = getKnockoutResult(fromPid);
+    return fromRes&&fromRes.ganador?fromRes.ganador:"Gan. "+fromPid;
+  } else {
+    var fromPid2 = tree.visitante_from;
+    if(!fromPid2)return "?";
+    var fromRes2 = getKnockoutResult(fromPid2);
+    return fromRes2&&fromRes2.ganador?fromRes2.ganador:"Gan. "+fromPid2;
+  }
+}
+
+function getMatchTeams(pid){
+  var local = resolveTeam(pid, "local");
+  var visitante = resolveTeam(pid, "visitante");
+  return {local: local, visitante: visitante};
+}
+
+// Check if a match is ready to be played (both teams known)
+function matchReady(pid){
+  var teams = getMatchTeams(pid);
+  return teams.local!=="?" && !teams.local.startsWith("Gan.") &&
+         teams.visitante!=="?" && !teams.visitante.startsWith("Gan.");
+}
+
 function renderBracket(){
   var content=document.getElementById("bracketContent");
   var faseOrder=["dieciseisavos","octavos","cuartos","semis","final"];
   var faseNames={dieciseisavos:"16avos",octavos:"Octavos",cuartos:"Cuartos",semis:"Semis",final:"Final"};
   var myChamp=myName&&SEED.champions[myName]?normalizeTeamName(SEED.champions[myName].campeon):"";
 
-  // Check if any knockout result exists
-  var anyResult=SEED.knockoutMatches.some(function(m){var r=getKnockoutResult(m.pid);return r&&r.ganador;});
+  // Check if any 16avos result exists
+  var anyResult=SEED.knockoutMatches.some(function(m){
+    return m.fase==="dieciseisavos"&&getKnockoutResult(m.pid)&&getKnockoutResult(m.pid).ganador;
+  });
+
   if(!anyResult){
     content.innerHTML="<div style='text-align:center;padding:40px 20px;color:var(--muted)'>"
       +"<div style='font-size:40px;margin-bottom:12px'>🏆</div>"
       +"<div style='font-size:16px;font-weight:700;margin-bottom:8px'>El bracket se llenará conforme avance el torneo</div>"
-      +"<div style='font-size:13px'>Los Dieciseisavos de Final empiezan pronto</div>"
-      +"</div>";
+      +"<div style='font-size:13px'>Los Dieciseisavos de Final empiezan pronto. Los cruces ya están definidos abajo.</div>"
+      +"</div>"
+      +"<div style='max-width:600px;margin:0 auto;'>"
+      +"<div style='font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:12px'>Cruces de Dieciseisavos</div>";
+
+    // Show 16avos bracket
+    SEED.knockoutMatches.filter(function(m){return m.fase==="dieciseisavos";}).forEach(function(m){
+      var ko=SEED.knockoutResults[m.pid]||{};
+      var local=ko.local||"?"; var vis=ko.visitante||"?";
+      content.innerHTML+="<div style='background:white;border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;font-size:13px;'>"
+        +"<span style='font-weight:600'>"+local+"</span>"
+        +"<span style='color:var(--muted);font-size:11px'>vs</span>"
+        +"<span style='font-weight:600'>"+vis+"</span>"
+        +"</div>";
+    });
+
+    content.innerHTML += "</div>";
     return;
   }
 
@@ -1187,8 +1249,8 @@ function renderBracket(){
     if(thisOrd>1){
       var prevF=Object.keys(fO).find(function(f){return fO[f]===thisOrd-1;});
       var prevMs=SEED.knockoutMatches.filter(function(m){return m.fase===prevF;});
-      var anyPrevResult=prevMs.some(function(m){var r=getKnockoutResult(m.pid);return r&&r.ganador;});
-      if(!anyPrevResult)return;
+      var anyPrev=prevMs.some(function(m){var r=getKnockoutResult(m.pid);return r&&r.ganador;});
+      if(!anyPrev)return;
     }
 
     html+="<div class='bracket-round'>";
@@ -1196,30 +1258,27 @@ function renderBracket(){
     html+="<div class='bracket-matches'>";
 
     matches.forEach(function(m){
-      var ko=SEED.knockoutResults[m.pid]||{};
-      var local=ko.local||m.local||"?";
-      var visitante=ko.visitante||m.visitante||"?";
+      var teams=getMatchTeams(m.pid);
+      var local=teams.local; var visitante=teams.visitante;
       var res=getKnockoutResult(m.pid);
       var ganador=res&&res.ganador?res.ganador:null;
       var hasRes=!!ganador;
+      var isPending=!matchReady(m.pid)&&!hasRes;
 
-      var localClass=hasRes?(ganador===local?"winner":"loser"):"";
-      var visClass=hasRes?(ganador===visitante?"winner":"loser"):"";
+      var localClass=hasRes?(ganador===local?"winner":"loser"):isPending?"tbd":"";
+      var visClass=hasRes?(ganador===visitante?"winner":"loser"):isPending?"tbd":"";
 
-      // My pick
       var myPick=myName&&m.predictions[myName]?m.predictions[myName]:"";
-      var myPickLocal=myPick===local;
-      var myPickVis=myPick===visitante;
 
       html+="<div class='bracket-match"+(hasRes?" has-result":"")+"'>";
       html+="<div class='bracket-team "+localClass+"'>";
       html+="<span class='bracket-team-name'>"+local+"</span>";
-      if(myPickLocal)html+="<span class='my-pick-badge'>yo</span>";
+      if(myPick===local&&local!=="?")html+="<span class='my-pick-badge'>yo</span>";
       html+="</div>";
       html+="<div class='bracket-divider'></div>";
       html+="<div class='bracket-team "+visClass+"'>";
       html+="<span class='bracket-team-name'>"+visitante+"</span>";
-      if(myPickVis)html+="<span class='my-pick-badge'>yo</span>";
+      if(myPick===visitante&&visitante!=="?")html+="<span class='my-pick-badge'>yo</span>";
       html+="</div>";
       html+="</div>";
     });
